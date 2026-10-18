@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HMI Injeksi Demulsifier – Alpha & DBC ke Eko Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --frame:#0B2240; --bg:#123362; --panel:#163C70; --bar:#0B2545; --bar-ink:#EEF5FF;
+  --ink:#E6EFFB; --muted:#A6BEDC; --edge:#3466A3;
+  --pipe:#9DB3CE; --pipe-raw:#F0B14A; --pipe-ok:#35DD95; --chem:#C6A4FF;
+  --vessel:#1D4C85; --vessel-edge:#79A7DD; --oil:#9A7647; --water:#4BB0FA; --gas:#5A7EA8;
+  --run:#35DD95; --stop:#6A84A6; --alm:#FF6B6B; --warn:#FFD24D; --sample:#5ACBFF;
+  --tag-bg:#0A1E3D; --tag-ink:#6BE6FF; --btn:#1B4C86; --btn-on:#2A8BF0;
+  color-scheme: dark;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --frame:#050E1C; --bg:#0A1C36; --panel:#0D2443; --bar:#071629; --bar-ink:#E3EEFF;
+    --ink:#DCE8F7; --muted:#8EA8C9; --edge:#24497A;
+    --pipe:#7F98B5; --pipe-raw:#E8A93E; --pipe-ok:#2BD38C; --chem:#B993FF;
+    --vessel:#123660; --vessel-edge:#5B8DCB; --oil:#8C6B3F; --water:#3AA3F2; --gas:#4A6A90;
+    --run:#2BD38C; --stop:#5A7393; --alm:#FF5A5A; --warn:#FFC940; --sample:#4FC3FF;
+    --tag-bg:#05132A; --tag-ink:#5CE1FF; --btn:#123A68; --btn-on:#1E7BE0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --frame:#050E1C; --bg:#0A1C36; --panel:#0D2443; --bar:#071629; --bar-ink:#E3EEFF;
+    --ink:#DCE8F7; --muted:#8EA8C9; --edge:#24497A;
+    --pipe:#7F98B5; --pipe-raw:#E8A93E; --pipe-ok:#2BD38C; --chem:#B993FF;
+    --vessel:#123660; --vessel-edge:#5B8DCB; --oil:#8C6B3F; --water:#3AA3F2; --gas:#4A6A90;
+    --run:#2BD38C; --stop:#5A7393; --alm:#FF5A5A; --warn:#FFC940; --sample:#4FC3FF;
+    --tag-bg:#05132A; --tag-ink:#5CE1FF; --btn:#123A68; --btn-on:#1E7BE0;
+    color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{margin:0}
+body{background:var(--frame);color:var(--ink);font-family:"IBM Plex Sans Condensed","Arial Narrow",Arial,sans-serif;font-size:14px;font-variant-numeric:tabular-nums}
+.hmi{max-width:1320px;margin:0 auto;padding:10px}
+.topbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;background:var(--bar) linear-gradient(180deg,rgba(255,255,255,.06),rgba(0,0,0,.15));color:var(--bar-ink);padding:8px 12px;border:1px solid var(--edge);border-bottom:none}
+.topbar h1{font-size:18px;font-weight:600;margin:0;flex:1 1 320px;letter-spacing:.2px}
+.topbar .sub{font-weight:400;opacity:.75;font-size:13px;display:block}
+.clock{font-size:15px;font-weight:600;min-width:150px;text-align:right}
+.sim{background:transparent;border:1px solid var(--warn);color:var(--warn);font-weight:700;font-size:12px;padding:2px 8px;border-radius:3px}
+.navbtns{display:flex;gap:4px}
+.navbtns button{font:inherit;font-weight:600;font-size:13px;padding:6px 12px;border:1px solid var(--edge);background:var(--btn);color:var(--bar-ink);border-radius:3px;cursor:pointer}
+.navbtns button[aria-pressed="true"]{background:var(--btn-on);border-color:var(--sample);color:#fff;box-shadow:0 0 8px rgba(79,195,255,.45)}
+.navbtns button:focus-visible,.fp button:focus-visible,.alarms button:focus-visible{outline:2px solid var(--warn);outline-offset:1px}
+.screen{position:relative;background-color:var(--bg);background-image:linear-gradient(rgba(120,170,230,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(120,170,230,.06) 1px,transparent 1px);background-size:20px 20px;border:1px solid var(--edge);overflow-x:auto}
+.screen svg{display:block;width:100%;min-width:980px;height:auto}
+.alarms{background:var(--panel);border:1px solid var(--edge);border-top:none}
+.alarms .hd{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;background:var(--bar);color:var(--bar-ink);font-weight:600;font-size:13px}
+.alarms button{font:inherit;font-size:12px;font-weight:600;padding:3px 10px;border-radius:3px;border:1px solid #6E7783;background:#4A5361;color:#E8ECF1;cursor:pointer}
+.alarms table{width:100%;border-collapse:collapse;font-size:13px}
+.alarms td{padding:4px 10px;border-top:1px solid var(--edge);white-space:nowrap}
+.alarms td.msg{white-space:normal;width:100%}
+.alarms-wrap{overflow-x:auto}
+.pri{display:inline-block;min-width:26px;text-align:center;font-weight:700;font-size:11px;padding:1px 4px;border-radius:2px;color:#fff}
+.pri.h{background:var(--alm)}.pri.i{background:#4A5361}
+tr.unack td.msg{font-weight:600}
+tr.unack .pri.h{animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){tr.unack .pri.h{animation:none}.flow{display:none}}
+
+/* faceplate */
+.fp{position:absolute;top:12px;right:12px;width:250px;background:var(--panel);border:2px solid var(--edge);box-shadow:0 4px 14px rgba(0,0,0,.35);font-size:13px;z-index:2}
+.fp[hidden]{display:none}
+.fp .hd{background:var(--bar);border-bottom:2px solid var(--btn-on);color:var(--bar-ink);padding:6px 10px;display:flex;justify-content:space-between;align-items:center;font-weight:600}
+.fp .hd button{all:unset;cursor:pointer;font-size:16px;line-height:1;padding:0 4px}
+.fp .bd{padding:10px}
+.fp .row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted var(--edge)}
+.fp .row b{font-weight:600}
+.fp .ctl{display:flex;gap:6px;margin:10px 0 8px}
+.fp .ctl button{flex:1;font:inherit;font-weight:700;padding:7px 0;border-radius:3px;border:1px solid var(--edge);cursor:pointer;background:var(--tag-bg);color:var(--ink)}
+.fp .ctl button.start[aria-pressed="true"]{background:var(--run);color:#fff;border-color:var(--run)}
+.fp .ctl button.stop[aria-pressed="true"]{background:var(--stop);color:#fff;border-color:var(--stop)}
+.fp label{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:4px}
+.fp input{width:90px;font:inherit;text-align:right;padding:4px 6px;background:var(--tag-bg);color:var(--ink);border:1px solid var(--edge);border-radius:2px}
+.fp .note{color:var(--muted);font-size:12px;margin-top:8px;line-height:1.35}
+
+/* svg */
+.pipe{fill:none;stroke-width:7;stroke-linecap:square;stroke-linejoin:miter}
+.pipe.raw{stroke:var(--pipe-raw)}.pipe.ok{stroke:var(--pipe-ok)}.pipe.pl{stroke:var(--pipe)}
+.pipe.water{stroke:var(--water);stroke-width:5}.pipe.gasl{stroke:var(--pipe);stroke-width:4}
+.flow{fill:none;stroke:#fff;stroke-opacity:.5;stroke-width:2;stroke-dasharray:5 15;animation:flow 1.3s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-20}}
+.chemline{fill:none;stroke:var(--chem);stroke-width:2.5;stroke-dasharray:6 4}
+.chemline.off{stroke:var(--stop)}
+.eq{fill:var(--vessel);stroke:var(--vessel-edge);stroke-width:1.5}
+.t{fill:var(--ink);font-family:"IBM Plex Sans Condensed","Arial Narrow",Arial,sans-serif}
+.t.b{font-weight:600}.t.m{fill:var(--muted)}
+.tag rect{fill:var(--tag-bg);stroke:var(--edge);stroke-width:1}
+.tag .tn{fill:var(--muted);font-size:11px}
+.tag .tv{fill:var(--tag-ink);font-size:15px;font-weight:600}
+.pump{cursor:pointer}
+.pump:focus{outline:none}
+.pump:focus-visible .focusring{stroke:var(--warn);stroke-width:2.5}
+.pump .focusring{fill:none;stroke:none}
+.pump .body{stroke:var(--vessel-edge);stroke-width:1.5}
+.pump.run .body{fill:var(--run)}.pump.stp .body{fill:var(--stop)}
+.pump .tri{fill:#fff}
+.st{font-size:11px;font-weight:700}
+.st.run{fill:var(--run)}.st.stp{fill:var(--muted)}
+.almflag{fill:var(--alm)}
+
+.panels{display:grid;grid-template-columns:repeat(12,1fr);gap:10px;margin-top:10px}
+.pn{background:var(--panel);border:1px solid var(--edge);grid-column:span 6}
+.pn.w4{grid-column:span 4}.pn.w8{grid-column:span 8}.pn.w12{grid-column:span 12}
+@media (max-width:980px){.pn,.pn.w4,.pn.w8{grid-column:span 12}}
+.pn .hd{background:var(--bar);border-bottom:2px solid var(--btn-on);color:var(--bar-ink);padding:5px 10px;font-weight:600;font-size:13px}
+.pn .bd{padding:8px 10px;overflow-x:auto}
+.pn table{width:100%;border-collapse:collapse;font-size:13px}
+.pn th,.pn td{padding:4px 6px;text-align:right;border-bottom:1px solid var(--edge);white-space:nowrap}
+.pn th:first-child,.pn td:first-child{text-align:left}
+.pn th{color:var(--muted);font-weight:600}
+.pn input[type=number]{width:84px;font:inherit;text-align:right;padding:3px 6px;background:var(--tag-bg);color:var(--tag-ink);font-weight:600;border:1px solid var(--edge);border-radius:2px}
+.pn input[type=number]:focus-visible{outline:2px solid var(--warn);outline-offset:1px}
+.pn input[type=checkbox]{width:16px;height:16px;accent-color:var(--run)}
+.pn .params{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:8px}
+.pn .params label{display:flex;flex-direction:column;gap:2px;color:var(--muted);font-size:12px}
+.pn .foot{color:var(--muted);font-size:12px;margin-top:6px}
+.pn tr.tot td{font-weight:700}
+.tag .tv2{fill:var(--tag-ink);font-size:13px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="hmi">
+  <div class="topbar">
+    <h1>INJEKSI DEMULSIFIER – ALPHA & DBC → EKO TERMINAL<span class="sub">Overview proses · Chemical injection system</span></h1>
+    <div class="navbtns" role="group" aria-label="Skenario">
+      <button type="button" data-scen="eks" aria-pressed="true">Eksisting</button>
+      <button type="button" data-scen="ren" aria-pressed="false">Rencana injeksi</button>
+    </div>
+    <span class="sim" title="Nilai dihitung dari data input, bukan data real-time lapangan">SIMULASI</span>
+    <div class="clock" id="clock">--</div>
+  </div>
+  <div class="screen">
+    <svg id="hmi" viewBox="0 0 1260 620" role="img" aria-label="Tampilan HMI sistem injeksi demulsifier Alpha, Bravo, Charlie, Delta ke Process Facility Eko"></svg>
+    <div class="fp" id="fp" hidden role="dialog" aria-labelledby="fpTitle"></div>
+  </div>
+
+  <div class="panels">
+    <section class="pn w8">
+      <div class="hd">Input data produksi</div>
+      <div class="bd">
+        <table>
+          <thead><tr><th>Sumber</th><th>Gross (BLPD)</th><th>BSW (%)</th><th>GOR (scf/bbl)</th><th>Net oil (BOPD)</th><th>Air (BWPD)</th><th>Gas (MSCFD)</th></tr></thead>
+          <tbody id="prodRows"></tbody>
+        </table>
+        <div class="params">
+          <label>API gravity minyak<input type="number" step="0.1" data-k="par.api"></label>
+          <label>SG air terproduksi<input type="number" step="0.01" data-k="par.sgw"></label>
+          <label>SG gas (udara = 1)<input type="number" step="0.01" data-k="par.sgg"></label>
+          <label>Target BSW outlet minyak (%)<input type="number" step="0.1" data-k="par.bswOut"></label>
+        </div>
+      </div>
+    </section>
+    <section class="pn w4">
+      <div class="hd" id="dosHd">Dosis demulsifier</div>
+      <div class="bd">
+        <table>
+          <thead><tr><th>Pompa</th><th>Aktif</th><th>Dosis (ppm)</th><th>L/detik</th><th>L/hari</th></tr></thead>
+          <tbody id="dosRows"></tbody>
+        </table>
+        <div class="foot">ppm v/v terhadap laju gross di titik injeksi. Pompa P-410 (outlet Delta) melihat gabungan Bravo + Charlie + Delta.</div>
+      </div>
+    </section>
+    <section class="pn w6">
+      <div class="hd">Sample 1 – komposit B + C + D</div>
+      <div class="bd">
+        <div class="params" style="margin-top:0;margin-bottom:8px">
+          <label>Jumlah botol uji<input type="number" min="0" step="1" data-k="sv.n1"></label>
+          <label>Volume per botol (mL)<input type="number" min="1" step="10" data-k="sv.v1"></label>
+        </div>
+        <table>
+          <thead><tr><th>Komponen</th><th>Laju (BLPD)</th><th>% volume</th><th>Per botol (mL)</th><th>Total (mL)</th></tr></thead>
+          <tbody id="s1Rows"></tbody>
+        </table>
+        <div class="foot">% volume dari gross Bravo, Charlie, dan Delta terhadap total DBC.</div>
+      </div>
+    </section>
+    <section class="pn w6">
+      <div class="hd">Sample 2 – A + komposit B + C + D</div>
+      <div class="bd">
+        <div class="params" style="margin-top:0;margin-bottom:8px">
+          <label>Jumlah botol uji<input type="number" min="0" step="1" data-k="sv.n2"></label>
+          <label>Volume per botol (mL)<input type="number" min="1" step="10" data-k="sv.v2"></label>
+        </div>
+        <table>
+          <thead><tr><th>Komponen</th><th>Laju (BLPD)</th><th>% volume</th><th>Per botol (mL)</th><th>Total (mL)</th></tr></thead>
+          <tbody id="s2Rows"></tbody>
+        </table>
+        <div class="foot">% volume dari gross Alpha dan gross DBC terhadap total inlet EKO.</div>
+      </div>
+    </section>
+    <section class="pn w12">
+      <div class="hd">Ringkasan kebutuhan sampel lapangan</div>
+      <div class="bd">
+        <table>
+          <thead><tr><th>Sampel lapangan</th><th>Untuk Sample 1 (mL)</th><th>Untuk Sample 2 (mL)</th><th>Total diambil (mL)</th></tr></thead>
+          <tbody id="sumRows"></tbody>
+        </table>
+        <div class="foot" id="sumFoot"></div>
+      </div>
+    </section>
+    <section class="pn w12">
+      <div class="hd">Neraca massa Process Facility EKO</div>
+      <div class="bd">
+        <table>
+          <thead><tr><th>Aliran</th><th>Minyak (BOPD)</th><th>Air (BWPD)</th><th>Gas (MMSCFD)</th><th>Massa minyak (t/hari)</th><th>Massa air (t/hari)</th><th>Massa gas (t/hari)</th><th>Total massa (t/hari)</th></tr></thead>
+          <tbody id="mbRows"></tbody>
+        </table>
+        <div class="foot" id="mbFoot"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+const LPB = 158.987;
+const DEF = {
+  prod:{
+    alpha:{gross:8000, bsw:40, gor:350},
+    bravo:{gross:2500, bsw:45, gor:420},
+    charlie:{gross:1500, bsw:60, gor:300},
+    delta:{gross:3000, bsw:50, gor:380}
+  },
+  par:{api:32, sgw:1.02, sgg:0.70, bswOut:0.5},
+  sv:{n1:6, v1:100, n2:6, v2:100, margin:10},
+  active:'eks',
+  dose:{
+    eks:{alpha:{on:true,ppm:47}, bravo:{on:false,ppm:40}, charlie:{on:true,ppm:63}, delta:{on:true,ppm:36}},
+    ren:{alpha:{on:true,ppm:47}, bravo:{on:false,ppm:40}, charlie:{on:false,ppm:63}, delta:{on:true,ppm:40}}
+  }
+};
+const NAMES={alpha:'Alpha',bravo:'Bravo',charlie:'Charlie',delta:'Delta'};
+const LETTER={alpha:'A',bravo:'B',charlie:'C',delta:'D'};
+const PUMPS={alpha:{tag:'P-110',loc:'Outlet Alpha Platform'},bravo:{tag:'P-210',loc:'Outlet Bravo'},charlie:{tag:'P-310',loc:'Outlet Charlie'},delta:{tag:'P-410',loc:'Outlet Delta (OGGL)'}};
+const KEY='hmi-injeksi-eko-v2';
+let S=(()=>{try{const r=localStorage.getItem(KEY);if(r)return Object.assign(structuredClone(DEF),JSON.parse(r));}catch(e){}return structuredClone(DEF);})();
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}};
+const get=p=>p.split('.').reduce((o,k)=>o?.[k],S);
+const setp=(p,v)=>{const ks=p.split('.');let o=S;ks.slice(0,-1).forEach(k=>o=o[k]);o[ks.at(-1)]=v;};
+let openFp=null, events=[], acked=new Set();
+const nf=(x,d=0)=>isFinite(x)?x.toLocaleString('id-ID',{minimumFractionDigits:d,maximumFractionDigits:d}):'–';
+
+/* ---------- model ---------- */
+function model(scen=S.active){
+  const P=S.prod, par=S.par;
+  const st={};
+  for(const k in P){ const g=+P[k].gross||0, b=(+P[k].bsw||0)/100; st[k]={gross:g, oil:g*(1-b), water:g*b, gas:g*(1-b)*(+P[k].gor||0)}; }
+  const sum=(ks,f)=>ks.reduce((a,k)=>a+st[k][f],0);
+  const dbcK=['bravo','charlie','delta'], allK=['alpha','bravo','charlie','delta'];
+  const dbc={gross:sum(dbcK,'gross'),oil:sum(dbcK,'oil'),water:sum(dbcK,'water'),gas:sum(dbcK,'gas')};
+  const inl={gross:sum(allK,'gross'),oil:sum(allK,'oil'),water:sum(allK,'water'),gas:sum(allK,'gas')};
+  const basis={alpha:st.alpha.gross, bravo:st.bravo.gross, charlie:st.charlie.gross, delta:dbc.gross};
+  const D=S.dose[scen], inj={};
+  for(const k in D){ const on=D[k].on && +D[k].ppm>0; const Ld= on? (+D[k].ppm)*1e-6*basis[k]*LPB : 0; inj[k]={on, ppm:on?+D[k].ppm:0, Ld, Ls:Ld/86400}; }
+  // facility balance
+  const bo=Math.min(Math.max(par.bswOut/100,0),0.99);
+  const wRes=Math.min(inl.water, inl.oil*bo/(1-bo));
+  const out={oil:inl.oil, oilWater:wRes, oilGross:inl.oil+wRes, oilBsw:(inl.oil+wRes)>0?wRes/(inl.oil+wRes)*100:0, water:inl.water-wRes, gas:inl.gas};
+  const sgo=141.5/(par.api+131.5);
+  const tOil=b=>b*0.158987*sgo, tW=b=>b*0.158987*par.sgw, tG=scf=>scf*0.0764*par.sgg/2204.62;
+  const totalLd=Object.values(inj).reduce((a,x)=>a+x.Ld,0);
+  return {st,dbc,inl,basis,inj,out,sgo,tOil,tW,tG,totalLd};
+}
+const bswOf=s=>s.gross>0?s.water/s.gross*100:0;
+function treated(m){ const i=m.inj; return {alpha:i.alpha.on, bravo:i.bravo.on, charlie:i.charlie.on, ogg:i.bravo.on||i.charlie.on||i.delta.on}; }
+function untreated(m){ const i=m.inj,l=[]; if(!i.alpha.on)l.push('Alpha'); if(!i.bravo.on&&!i.delta.on)l.push('Bravo'); if(!i.charlie.on&&!i.delta.on)l.push('Charlie'); if(!i.delta.on)l.push('Delta'); return l; }
+
+/* ---------- drawing ---------- */
+const P=(d,c)=>`<path class="pipe ${c}" d="${d}"/><path class="flow" d="${d}"/>`;
+// two-value tag: flow + bsw (or custom)
+const tag2=(x,y,title,v1,u1,v2,u2,w=150)=>`<g class="tag"><rect x="${x}" y="${y}" width="${w}" height="52" rx="2"/>
+  <text class="t tn" x="${x+6}" y="${y+13}">${title}</text>
+  <text class="t tn" x="${x+6}" y="${y+30}">${u1}</text><text class="t tv" x="${x+w-6}" y="${y+30}" text-anchor="end">${v1}</text>
+  <text class="t tn" x="${x+6}" y="${y+46}">${u2}</text><text class="t tv2" x="${x+w-6}" y="${y+46}" text-anchor="end">${v2}</text></g>`;
+const tag1=(x,y,title,v,u,w=120)=>`<g class="tag"><rect x="${x}" y="${y}" width="${w}" height="38" rx="2"/>
+  <text class="t tn" x="${x+6}" y="${y+13}">${title}</text>
+  <text class="t tn" x="${x+6}" y="${y+31}">${u}</text><text class="t tv" x="${x+w-6}" y="${y+31}" text-anchor="end">${v}</text></g>`;
+function source(x,y,label,sub){ return `<g><rect class="eq" x="${x}" y="${y}" width="140" height="60" rx="3"/>
+  <text class="t b" x="${x+70}" y="${y+27}" text-anchor="middle" font-size="18">${label}</text>
+  <text class="t m" x="${x+70}" y="${y+46}" text-anchor="middle" font-size="12">${sub}</text></g>`; }
+// offshore platform: topsides module (top..top+modH), deck, jacket legs, sea
+function platform(x,w,top,modH,label,letter,sub,flare){
+  const deck=top+modH, sea=deck+30, L1=x+18, L2=x+w-18, I1=x+w/2-20, I2=x+w/2+20, e='var(--vessel-edge)';
+  let waves=`M${x-8} ${sea}`; for(let i=x-8;i<x+w+8;i+=12) waves+=` q3 -3 6 0 q3 3 6 0`;
+  const br=(a,b,y1,y2)=>`M${a} ${y1} L${b} ${y2} M${b} ${y1} L${a} ${y2}`;
+  const mid=deck+15;
+  return `<g aria-label="Platform lepas pantai ${label}">
+    <rect x="${x-8}" y="${sea}" width="${w+16}" height="10" fill="var(--water)" opacity=".22"/>
+    <path d="M${L1} ${deck+4} L${L1-7} ${sea+8} M${L2} ${deck+4} L${L2+7} ${sea+8} M${I1} ${deck+4} V${sea+8} M${I2} ${deck+4} V${sea+8}" stroke="${e}" stroke-width="3" fill="none"/>
+    <path d="${br(L1-2,I1,deck+6,mid)} ${br(L1-5,I1,mid,sea+6)} ${br(I2,L2+2,deck+6,mid)} ${br(I2,L2+5,mid,sea+6)} ${br(I1,I2,deck+6,mid)} ${br(I1,I2,mid,sea+6)} M${L1-4} ${mid} H${L2+4}" stroke="${e}" stroke-width="1" fill="none" opacity=".8"/>
+    <path d="${waves}" stroke="var(--water)" stroke-width="1.5" fill="none"/>
+    <rect x="${x+2}" y="${deck}" width="${w-2}" height="5" fill="${e}"/>
+    <rect class="eq" x="${x+6}" y="${top}" width="${w-6}" height="${modH}" rx="2"/>
+    <path d="M${x+6} ${top+modH/2} H${x+w}" stroke="${e}" stroke-width=".8" opacity=".5"/>
+    <rect x="${x+w-50}" y="${top-5}" width="38" height="5" fill="${e}"/>
+    <path d="M${x+w-46} ${top-5} L${x+w-40} ${top-12} H${x+w-22} L${x+w-16} ${top-5}" fill="none" stroke="${e}" stroke-width="1"/>
+    <text x="${x+w-31}" y="${top-6}" text-anchor="middle" font-size="7" font-weight="700" fill="var(--warn)">H</text>
+    <rect x="${x+16}" y="${top-12}" width="6" height="12" fill="${e}"/>
+    <path d="M${x+19} ${top-11} L${x+46} ${top-30} M${x+46} ${top-30} V${top-20}" stroke="var(--warn)" stroke-width="2" fill="none"/>
+    ${flare==='R'?`<path d="M${x+w-4} ${top+2} L${x+w+12} ${top-26}" stroke="${e}" stroke-width="2.5"/><path d="M${x+w+12} ${top-26} q-6 -6 0 -14 q2 6 5 4 q2 6 -5 10z" fill="#FF9A3C"/>`:''}
+    ${flare==='L'?`<path d="M${x+8} ${top+2} L${x-8} ${top-26}" stroke="${e}" stroke-width="2.5"/><path d="M${x-8} ${top-26} q-6 -6 0 -14 q2 6 5 4 q2 6 -5 10z" fill="#FF9A3C"/>`:''}
+    <circle cx="${x+20}" cy="${top+modH/2}" r="8" fill="var(--btn-on)"/>
+    <text x="${x+20}" y="${top+modH/2+4}" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">${letter}</text>
+    <text class="t b" x="${x+w/2+10}" y="${sub? top+modH/2-2 : top+modH/2+5}" text-anchor="middle" font-size="15">${label}</text>
+    ${sub?`<text class="t m" x="${x+w/2+10}" y="${top+modH/2+13}" text-anchor="middle" font-size="11">${sub}</text>`:''}
+  </g>`;
+}
+function skid(m,k,ix,iy,dir){
+  const it=m.inj[k], run=it.on, py=iy+dir*62, tx=ix-46, ty=py-20;
+  return `<g>
+    <path class="chemline ${run?'':'off'}" d="M${tx+26} ${py} H${ix-13}"/>
+    <path class="chemline ${run?'':'off'}" d="M${ix} ${py-dir*13} V${iy+dir*4}"/>
+    <rect class="eq" x="${tx}" y="${ty}" width="26" height="40" rx="4"/>
+    <text class="t m" x="${tx+13}" y="${dir>0?ty+55:ty-6}" text-anchor="middle" font-size="10">TK chem</text>
+    <polygon points="${ix-5},${iy+dir*4} ${ix+5},${iy+dir*4} ${ix},${iy+dir*12}" fill="var(--chem)" transform="rotate(${dir>0?180:0} ${ix} ${iy+dir*8})"/>
+    <g class="pump ${run?'run':'stp'}" data-pump="${k}" tabindex="0" role="button" aria-label="Faceplate pompa ${PUMPS[k].tag} ${NAMES[k]}, ${run?'running':'stop'}">
+      <circle class="focusring" cx="${ix}" cy="${py}" r="18"/><circle class="body" cx="${ix}" cy="${py}" r="13"/>
+      <polygon class="tri" points="${ix-6},${py-7} ${ix-6},${py+7} ${ix+8},${py}"/></g>
+    <text class="t b" x="${ix+20}" y="${py-3}" font-size="12">${PUMPS[k].tag} <tspan class="st ${run?'run':'stp'}">${run?'RUN':'STOP'}</tspan></text>
+    <text class="t" x="${ix+20}" y="${py+12}" font-size="12" style="fill:var(--tag-ink);font-weight:600">${run? nf(it.ppm,1)+' ppm':'0 ppm'}</text>
+    <text class="t" x="${ix+20}" y="${py+26}" font-size="12" style="fill:var(--tag-ink);font-weight:600">${nf(it.Ls,5)} L/s</text>
+  </g>`;
+}
+function draw(){
+  const m=model(), t=treated(m), c=v=>v?'ok':'raw', st=m.st;
+  const fl=s=>nf(s.gross), bs=s=>nf(bswOf(s),1);
+  const svg=`
+  <text class="t m" x="16" y="22" font-size="12">Warna jalur: hijau = sudah terpapar demulsifier · jingga = belum terpapar · ungu putus-putus = jalur chemical</text>
+  ${P('M170 100 H880 V365', c(t.alpha))}
+  ${P('M170 290 H330 V345 H420', c(t.bravo))}
+  ${P('M170 450 H330 V385 H420', c(t.charlie))}
+  ${P('M560 365 H880', c(t.ogg))}
+  ${P('M880 365 H920', (t.alpha||t.ogg)?'ok':'raw')}
+  ${platform(30,140,82,28,'Alpha','A','','R')}
+  ${platform(30,140,272,28,'Bravo','B','','L')}
+  ${platform(30,140,432,28,'Charlie','C','','L')}
+  ${platform(420,140,335,60,'Delta','D','Gathering station','L')}
+
+  ${tag2(420,34,'FI/AI-101 Outlet A (Alpha)',fl(st.alpha),'BLPD',bs(st.alpha),'BSW %',170)}
+  ${tag2(30,184,'FI/AI-201 Outlet B',fl(st.bravo),'BLPD',bs(st.bravo),'BSW %',140)}
+  ${tag2(30,504,'FI/AI-301 Outlet C',fl(st.charlie),'BLPD',bs(st.charlie),'BSW %',140)}
+  ${tag2(420,442,'FI/AI-401 Produksi Delta',fl(st.delta),'BLPD',bs(st.delta),'BSW %',140)}
+  ${tag2(660,382,'FI/AI-402 Outlet D (OGGL DBC)',fl(m.dbc),'BLPD',bs(m.dbc),'BSW %',180)}
+
+  ${skid(m,'alpha',290,100,1)}
+  ${skid(m,'bravo',230,290,1)}
+  ${skid(m,'charlie',230,450,1)}
+  ${skid(m,'delta',620,365,-1)}
+
+  <g><rect x="872" y="212" width="16" height="16" transform="rotate(45 880 220)" fill="var(--sample)"/>
+    <text class="t b" x="864" y="217" font-size="12" text-anchor="end">S-2 Sample Alpha</text>
+    <text class="t m" x="864" y="232" font-size="11" text-anchor="end">sudah terpapar demulsifier</text></g>
+  <g><rect x="742" y="357" width="16" height="16" transform="rotate(45 750 365)" fill="var(--sample)"/>
+    <text class="t b" x="736" y="348" font-size="12" text-anchor="end">S-1 Sample DBC</text></g>
+  <text class="t m" x="700" y="122" font-size="12" text-anchor="middle">Pipeline Alpha – Eko</text>
+
+  <!-- EKO -->
+  <rect x="905" y="250" width="345" height="330" rx="4" fill="none" stroke="var(--edge)" stroke-dasharray="6 4"/>
+  <text class="t b" x="915" y="272" font-size="16">EKO TERMINAL</text>
+  ${tag2(915,282,'FI/AI-500 Inlet EKO',fl(m.inl),'BLPD',bs(m.inl),'BSW %',130)}
+  <rect class="eq" x="920" y="350" width="180" height="76" rx="12"/>
+  <text class="t b" x="1010" y="384" text-anchor="middle" font-size="14">Process Facility</text>
+  <text class="t b" x="1010" y="402" text-anchor="middle" font-size="14">EKO</text>
+  ${P('M1060 350 V320 H1110','pl')}
+  <!-- EKO flare stack -->
+  <g aria-label="Flare stack EKO">
+    <path d="M1085 320 V272" stroke="var(--pipe)" stroke-width="4"/>
+    <path d="M1078 320 L1082 272 M1092 320 L1088 272 M1079 312 L1091 300 M1091 312 L1079 300 M1080 298 L1090 286 M1090 298 L1080 286" stroke="var(--vessel-edge)" stroke-width="1" fill="none"/>
+    <rect x="1081" y="269" width="8" height="4" fill="var(--vessel-edge)"/>
+    <path d="M1085 269 q-8 -7 -1 -17 q2 7 6 5 q3 8 -5 12z" fill="#FF9A3C"/>
+    <path d="M1085 266 q-3 -4 0 -8 q2 4 3 3 q1 4 -3 5z" fill="#FFE08A"/>
+    <text class="t m" x="1072" y="292" text-anchor="end" font-size="10">Flare</text>
+  </g>
+  ${tag2(1110,282,'Gas (GOR)',nf(m.out.gas/1e6,3),'MMSCFD',nf(m.tG(m.out.gas),1),'t/hari',130)}
+  ${P('M955 426 V470','water')}
+  ${tag2(915,470,'Air dibuang',nf(m.out.water),'BWPD',nf(m.tW(m.out.water),1),'t/hari',130)}
+  ${P('M1100 388 H1165','ok')}
+  <rect x="1124" y="374" width="12" height="28" fill="var(--sample)"/>
+  <text class="t b" x="1130" y="368" text-anchor="middle" font-size="11">AS-501</text>
+  <!-- TK-601 floating roof tank -->
+  <g aria-label="TK-601 storage tank tipe floating roof">
+    <path class="eq" d="M1165 350 V448 A37 5 0 0 0 1239 448 V350 Z"/>
+    <clipPath id="tkclip"><rect x="1166" y="352" width="72" height="100"/></clipPath>
+    <g clip-path="url(#tkclip)">
+      <rect x="1166" y="352" width="72" height="100" fill="var(--tag-bg)" opacity=".55"/>
+      <rect id="tk-lvl" x="1166" y="400" width="72" height="52" fill="var(--oil)" opacity=".85"/>
+      <g id="tk-roof">
+        <rect x="1167" y="0" width="70" height="4" fill="var(--vessel-edge)"/>
+        <rect x="1167" y="-2" width="8" height="7" rx="1" fill="var(--pipe)"/>
+        <rect x="1229" y="-2" width="8" height="7" rx="1" fill="var(--pipe)"/>
+        <line x1="1182" y1="0" x2="1182" y2="-4" stroke="var(--pipe)" stroke-width="1.5"/>
+        <line x1="1220" y1="0" x2="1220" y2="-4" stroke="var(--pipe)" stroke-width="1.5"/>
+      </g>
+      <path id="tk-ladder" fill="none" stroke="var(--warn)" stroke-width="1.2" d=""/>
+    </g>
+    <ellipse cx="1202" cy="350" rx="37" ry="5" fill="none" stroke="var(--vessel-edge)" stroke-width="1.5"/>
+    <line x1="1162" y1="360" x2="1242" y2="360" stroke="var(--vessel-edge)" stroke-width="2.5"/>
+    <rect x="1232" y="346" width="16" height="3" fill="var(--vessel-edge)"/>
+    <path d="M1232 346 V339 H1248 V346 M1240 339 V346" fill="none" stroke="var(--vessel-edge)" stroke-width="1"/>
+    ${stairs()}
+    <text class="t b" x="1202" y="466" text-anchor="middle" font-size="11">TK-601 Storage</text>
+    <text class="t m" x="1202" y="479" text-anchor="middle" font-size="10">Floating roof</text>
+  </g>
+  ${tag2(1052,470,'Minyak ke storage',nf(m.out.oilGross),'BLPD',nf(m.out.oilBsw,2),'BSW %',108)}
+  `;
+  document.getElementById('hmi').innerHTML=svg;
+  animTank();
+  renderPanels(m);
+}
+let tkLevel=45;
+// external stairway on shell face (bottom-right to top platform)
+function stairs(){
+  const x1=1172,y1=447,x2=1234,y2=352,n=14; let d=`M${x1} ${y1} L${x2} ${y2} M${x1} ${y1-7} L${x2} ${y2-7}`;
+  for(let i=0;i<=n;i++){ const x=x1+(x2-x1)*i/n, y=y1+(y2-y1)*i/n; d+=` M${x.toFixed(1)} ${y.toFixed(1)} h5`; }
+  for(let i=0;i<=n;i+=3){ const x=x1+(x2-x1)*i/n, y=y1+(y2-y1)*i/n; d+=` M${x.toFixed(1)} ${y.toFixed(1)} v-7`; }
+  return `<path d="${d}" fill="none" stroke="var(--pipe)" stroke-width="1.2"/>`;
+}
+function animTank(){
+  const tk=document.getElementById('tk-lvl'); if(!tk) return;
+  const h=96*tkLevel/100, y=448-h;
+  tk.setAttribute('y',y); tk.setAttribute('height',h+4);
+  document.getElementById('tk-roof').setAttribute('transform',`translate(0 ${(y-4).toFixed(1)})`);
+  // rolling ladder: from top platform down to the roof
+  const ax=1228, ay=350, bx=1202, by=y-6, n=Math.max(3,Math.round((by-ay)/6));
+  let d=`M${ax} ${ay} L${bx} ${by} M${ax+4} ${ay} L${bx+4} ${by}`;
+  for(let i=1;i<n;i++){ const x=ax+(bx-ax)*i/n, yy=ay+(by-ay)*i/n; d+=` M${x.toFixed(1)} ${yy.toFixed(1)} h4`; }
+  document.getElementById('tk-ladder').setAttribute('d',d);
+}
+setInterval(()=>{ tkLevel = tkLevel>=88?40:tkLevel+0.05; animTank(); },2000);
+
+/* ---------- panels ---------- */
+function renderPanels(m){
+  const P=S.prod;
+  const pr=document.getElementById('prodRows');
+  if(!pr.dataset.built){
+    pr.innerHTML=Object.keys(P).map(k=>`<tr><td><b>${LETTER[k]} – ${NAMES[k]}</b></td>
+      <td><input type="number" min="0" step="50" data-k="prod.${k}.gross" aria-label="Gross ${NAMES[k]}"></td>
+      <td><input type="number" min="0" max="99.9" step="0.5" data-k="prod.${k}.bsw" aria-label="BSW ${NAMES[k]}"></td>
+      <td><input type="number" min="0" step="10" data-k="prod.${k}.gor" aria-label="GOR ${NAMES[k]}"></td>
+      <td id="po-${k}"></td><td id="pw-${k}"></td><td id="pg-${k}"></td></tr>`).join('')+
+      `<tr class="tot"><td>Total ke EKO</td><td id="tg"></td><td id="tb"></td><td></td><td id="to"></td><td id="tw"></td><td id="tgas"></td></tr>`;
+    pr.dataset.built=1;
+  }
+  for(const k in P){ document.getElementById('po-'+k).textContent=nf(m.st[k].oil); document.getElementById('pw-'+k).textContent=nf(m.st[k].water); document.getElementById('pg-'+k).textContent=nf(m.st[k].gas/1000,0); }
+  document.getElementById('tg').textContent=nf(m.inl.gross); document.getElementById('tb').textContent=nf(bswOf(m.inl),1);
+  document.getElementById('to').textContent=nf(m.inl.oil); document.getElementById('tw').textContent=nf(m.inl.water); document.getElementById('tgas').textContent=nf(m.inl.gas/1000,0);
+
+  document.getElementById('dosHd').textContent='Dosis demulsifier – '+(S.active==='eks'?'skenario eksisting':'skenario rencana');
+  const dr=document.getElementById('dosRows');
+  if(dr.dataset.scen!==S.active){
+    dr.innerHTML=Object.keys(PUMPS).map(k=>`<tr><td>${PUMPS[k].tag} ${NAMES[k]}</td>
+      <td><input type="checkbox" data-on="${k}" aria-label="Aktifkan ${PUMPS[k].tag}"></td>
+      <td><input type="number" min="0" step="1" data-k="dose.${S.active}.${k}.ppm" aria-label="Dosis ${PUMPS[k].tag}"></td>
+      <td id="ls-${k}"></td><td id="ld-${k}"></td></tr>`).join('')+`<tr class="tot"><td>Total</td><td></td><td></td><td id="ls-t"></td><td id="ld-t"></td></tr>`;
+    dr.dataset.scen=S.active;
+  }
+  for(const k in PUMPS){ document.querySelector(`[data-on="${k}"]`).checked=S.dose[S.active][k].on; document.getElementById('ls-'+k).textContent=nf(m.inj[k].Ls,5); document.getElementById('ld-'+k).textContent=nf(m.inj[k].Ld,1); }
+  document.getElementById('ls-t').textContent=nf(m.totalLd/86400,5); document.getElementById('ld-t').textContent=nf(m.totalLd,1);
+
+  document.querySelectorAll('.pn input[type=number][data-k]').forEach(el=>{ if(document.activeElement!==el) el.value=get(el.dataset.k); });
+
+  renderSampling(m);
+  const i=m.inl,o=m.out;
+  const row=(n,oil,w,g,em='')=>{ const a=m.tOil(oil),b=m.tW(w),c=m.tG(g); return `<tr class="${em}"><td>${n}</td><td>${nf(oil)}</td><td>${nf(w)}</td><td>${nf(g/1e6,3)}</td><td>${nf(a,1)}</td><td>${nf(b,1)}</td><td>${nf(c,1)}</td><td>${nf(a+b+c,1)}</td></tr>`; };
+  const mIn=m.tOil(i.oil)+m.tW(i.water)+m.tG(i.gas), mOut=m.tOil(o.oil)+m.tW(o.oilWater+o.water)+m.tG(o.gas);
+  document.getElementById('mbRows').innerHTML=
+    row('Masuk: inlet EKO (A + DBC)',i.oil,i.water,i.gas,'tot')+
+    row('Keluar: minyak ke storage',o.oil,o.oilWater,0)+
+    row('Keluar: air dibuang',0,o.water,0)+
+    row('Keluar: gas',0,0,o.gas)+
+    row('Total keluar',o.oil,o.oilWater+o.water,o.gas,'tot');
+  document.getElementById('mbFoot').textContent=`Closure neraca massa ${nf(mIn>0?mOut/mIn*100:0,2)}%. SG minyak ${nf(m.sgo,3)} (API ${nf(S.par.api,1)}). Gas = Σ (net oil × GOR) tiap sumber; air dibuang = air masuk − air sisa di minyak pada BSW outlet ${nf(S.par.bswOut,2)}%. Massa demulsifier diabaikan.`;
+}
+
+
+/* ---------- sampling volume ---------- */
+function renderSampling(m){
+  const sv=S.sv, n1=Math.max(0,+sv.n1||0), v1=+sv.v1||0, n2=Math.max(0,+sv.n2||0), v2=+sv.v2||0;
+  const dbc=m.dbc.gross, fr=k=>dbc>0? m.st[k].gross/dbc:0;
+  const fA=m.inl.gross>0? m.st.alpha.gross/m.inl.gross:0, fC=1-fA;
+  const r=(name,flow,pct,per,tot,cls='')=>`<tr class="${cls}"><td>${name}</td><td>${flow}</td><td>${pct}</td><td>${per}</td><td>${tot}</td></tr>`;
+  // Sample 1
+  const T1=n1*v1; let h='';
+  ['bravo','charlie','delta'].forEach(k=>{ h+=r(`${LETTER[k]} – ${NAMES[k]}`, nf(m.st[k].gross), nf(fr(k)*100,1), nf(v1*fr(k),1), nf(T1*fr(k),1)); });
+  h+=r(`Total Sample 1 (${n1} botol)`, nf(dbc), '100,0', nf(v1,1), nf(T1,1), 'tot');
+  document.getElementById('s1Rows').innerHTML=h;
+  // Sample 2
+  const T2=n2*v2, Cin2=T2*fC, Ain2=T2*fA;
+  document.getElementById('s2Rows').innerHTML=
+    r('A – Alpha', nf(m.st.alpha.gross), nf(fA*100,1), nf(v2*fA,1), nf(Ain2,1))+
+    r('Komposit B + C + D', nf(dbc), nf(fC*100,1), nf(v2*fC,1), nf(Cin2,1))+
+    r(`Total Sample 2 (${n2} botol)`, nf(m.inl.gross), '100,0', nf(v2,1), nf(T2,1), 'tot');
+  // field summary
+  const row=(name,a,b,cls='')=>`<tr class="${cls}"><td>${name}</td><td>${nf(a,1)}</td><td>${nf(b,1)}</td><td>${nf(a+b,1)}</td></tr>`;
+  let s=row('A – Alpha',0,Ain2);
+  ['bravo','charlie','delta'].forEach(k=>{ s+=row(`${LETTER[k]} – ${NAMES[k]}`, T1*fr(k), Cin2*fr(k)); });
+  s+=row('Total',T1,T2,'tot');
+  document.getElementById('sumRows').innerHTML=s;
+  document.getElementById('sumFoot').textContent=`Komposit B + C + D yang perlu dibuat: ${nf(T1,0)} mL untuk Sample 1 + ${nf(Cin2,0)} mL untuk Sample 2 = ${nf(T1+Cin2,0)} mL.`;
+}
+
+/* ---------- faceplate ---------- */
+function showFp(k){
+  openFp=k; const m=model(), it=m.inj[k], d=S.dose[S.active][k], fp=document.getElementById('fp');
+  fp.innerHTML=`<div class="hd"><span id="fpTitle">${PUMPS[k].tag} · Pompa demulsifier ${NAMES[k]}</span><button type="button" aria-label="Tutup faceplate" data-close>×</button></div>
+   <div class="bd">
+    <div class="row"><span>Lokasi injeksi</span><b>${PUMPS[k].loc}</b></div>
+    <div class="row"><span>Status</span><b style="color:var(${it.on?'--run':'--muted'})">${it.on?'RUNNING':'STOPPED'}</b></div>
+    <div class="row"><span>Gross di titik injeksi</span><b>${nf(m.basis[k])} BLPD</b></div>
+    <div class="row"><span>Laju injeksi</span><b>${nf(it.Ls,5)} L/s</b></div>
+    <div class="row"><span></span><b>${nf(it.Ld,1)} L/hari</b></div>
+    <div class="ctl"><button type="button" class="start" aria-pressed="${it.on}" data-act="start">START</button><button type="button" class="stop" aria-pressed="${!it.on}" data-act="stop">STOP</button></div>
+    <label>Setpoint dosis (ppm)<input type="number" min="0" step="1" value="${d.ppm}" data-sp></label>
+    <div class="note">Skenario: ${S.active==='eks'?'Eksisting':'Rencana injeksi'}. L/s = ppm × 10⁻⁶ × gross (BLPD) × 158,987 ÷ 86.400.</div>
+   </div>`;
+  fp.hidden=false;
+}
+const closeFp=()=>{ openFp=null; document.getElementById('fp').hidden=true; };
+function setPump(k,onv){ const d=S.dose[S.active][k]; d.on=onv; if(onv&&!(+d.ppm>0)) d.ppm=30; }
+function refresh(){ save(); draw(); if(openFp) showFp(openFp); }
+document.getElementById('fp').addEventListener('click',e=>{
+  if(e.target.closest('[data-close]')){closeFp();return;}
+  const b=e.target.closest('[data-act]'); if(!b) return; setPump(openFp,b.dataset.act==='start'); refresh();
+});
+document.getElementById('fp').addEventListener('change',e=>{
+  if(!e.target.matches('[data-sp]')) return; const v=parseFloat(e.target.value); if(isNaN(v)||v<0) return;
+  S.dose[S.active][openFp].ppm=v; refresh();
+});
+document.addEventListener('input',e=>{
+  const el=e.target; if(!el.matches('.pn input[type=number][data-k]')) return;
+  const v=parseFloat(el.value); if(isNaN(v)||v<0) return; setp(el.dataset.k,v); save(); draw(); if(openFp) showFp(openFp);
+});
+document.addEventListener('change',e=>{
+  const el=e.target; if(el.matches('.pn input[data-on]')){ setPump(el.dataset.on, el.checked); refresh(); }
+  
+});
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&openFp) closeFp(); });
+const hmi=document.getElementById('hmi');
+hmi.addEventListener('click',e=>{ const p=e.target.closest('[data-pump]'); if(p) showFp(p.dataset.pump); });
+hmi.addEventListener('keydown',e=>{ const p=e.target.closest('[data-pump]'); if(p&&(e.key==='Enter'||e.key===' ')){e.preventDefault();showFp(p.dataset.pump);} });
+document.querySelectorAll('[data-scen]').forEach(b=>b.addEventListener('click',()=>{
+  if(S.active===b.dataset.scen) return; S.active=b.dataset.scen;
+  document.querySelectorAll('[data-scen]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.scen===S.active));
+  closeFp(); refresh();
+}));
+document.querySelectorAll('[data-scen]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.scen===S.active));
+const tick=()=>{ document.getElementById('clock').textContent=new Date().toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}); };
+draw(); tick(); setInterval(tick,1000);
+</script>
+</body>
+</html>
